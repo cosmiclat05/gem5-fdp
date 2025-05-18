@@ -217,7 +217,13 @@ InstructionQueue::IQStats::IQStats(CPU *cpu, const unsigned &total_width)
     ADD_STAT(fuBusy, statistics::units::Count::get(), "FU busy when requested"),
     ADD_STAT(fuBusyRate, statistics::units::Rate<
                 statistics::units::Count, statistics::units::Count>::get(),
-             "FU busy rate (busy events/executed inst)")
+             "FU busy rate (busy events/executed inst)"),
+    ADD_STAT(numInstsIssued0, statistics::units::Count::get(),
+             "0 instructions executed in a cycle"),
+    ADD_STAT(numInstsIssued1, statistics::units::Count::get(),
+                "1 instruction executed in a cycle"),   
+    ADD_STAT(numInstsIssued2, statistics::units::Count::get(),      
+                "2 instructions executed in a cycle")
 {
     instsAdded
         .prereq(instsAdded);
@@ -323,6 +329,10 @@ InstructionQueue::IQStats::IQStats(CPU *cpu, const unsigned &total_width)
         .flags(statistics::total)
         ;
     fuBusyRate = fuBusy / instsIssued;
+
+    numInstsIssued0.prereq(numInstsIssued0);
+    numInstsIssued1.prereq(numInstsIssued1);
+    numInstsIssued2.prereq(numInstsIssued2);
 }
 
 InstructionQueue::IQIOStats::IQIOStats(statistics::Group *parent)
@@ -919,6 +929,13 @@ InstructionQueue::scheduleReadyInsts()
     iqStats.numIssuedDist.sample(total_issued);
     iqStats.instsIssued+= total_issued;
 
+    if (total_issued == 0)
+        iqStats.numInstsIssued0++;
+    else if (total_issued == 1)
+        iqStats.numInstsIssued1++;
+    else if (total_issued == 2)
+        iqStats.numInstsIssued2++;
+
     // If we issued any instructions, tell the CPU we had activity.
     // @todo If the way deferred memory instructions are handeled due to
     // translation changes then the deferredMemInsts condition should be
@@ -928,6 +945,7 @@ InstructionQueue::scheduleReadyInsts()
     } else {
         DPRINTF(IQ, "Not able to schedule any instructions.\n");
     }
+
 }
 
 void

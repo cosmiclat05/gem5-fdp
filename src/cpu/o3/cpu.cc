@@ -355,7 +355,23 @@ CPU::CPUStats::CPUStats(CPU *cpu)
                "to idling"),
       ADD_STAT(quiesceCycles, statistics::units::Cycle::get(),
                "Total number of cycles that CPU has spent quiesced or waiting "
-               "for an interrupt")
+               "for an interrupt"),
+      ADD_STAT(frontendBound, statistics::units::Rate<statistics::units::Count, statistics::units::Count>::get(),
+               "Frontend Bound"),
+      ADD_STAT(badSpeculation, statistics::units::Rate<statistics::units::Count, statistics::units::Count>::get(),
+               "Bad Speculation"),
+      ADD_STAT(backendBound, statistics::units::Rate<statistics::units::Count, statistics::units::Count>::get(),
+               "Backend Bound"),
+      ADD_STAT(retiring, statistics::units::Rate<statistics::units::Count, statistics::units::Count>::get(),
+               "Retiring"),
+      ADD_STAT(fetchLatency, statistics::units::Rate<statistics::units::Count, statistics::units::Count>::get(),
+               "fetchLatency, icache inefficiency"),
+      ADD_STAT(fetchBandwidth, statistics::units::Rate<statistics::units::Count, statistics::units::Count>::get(),
+               "fetchBandwidth, decoder inefficiency"),
+      ADD_STAT(coreBound, statistics::units::Rate<statistics::units::Count, statistics::units::Count>::get(),
+               "coreBound, backend stalls due to functional units"),
+      ADD_STAT(memoryBound, statistics::units::Rate<statistics::units::Count, statistics::units::Count>::get(),
+               "memoryBound, backend stalls due to memory subsystem")
 {
     // Register any of the O3CPU's stats here.
     timesIdled
@@ -366,6 +382,23 @@ CPU::CPUStats::CPUStats(CPU *cpu)
 
     quiesceCycles
         .prereq(quiesceCycles);
+
+    // Top-Down Methodology
+    // L1
+    frontendBound = cpu->decode.getStats().fetchBubbles / (8 * cpu->baseStats.numCycles);
+    badSpeculation = (cpu->rename.getStats().renamedInsts - cpu->commit.getStats().committedInst + (cpu->commit.getStats().recoveryBubbles)) / (8 * cpu->baseStats.numCycles);
+    retiring = cpu->commit.getStats().committedInst / (8 * cpu->baseStats.numCycles);
+    backendBound = 1 - (frontendBound + badSpeculation + retiring);
+
+    // Frontend L2
+    fetchLatency = cpu->decode.getStats().fetchBubblesMax / (cpu->baseStats.numCycles);
+    fetchBandwidth = frontendBound - fetchLatency;
+
+    // Backend L2
+    executionStalls = (cpu->iew.instQueue.getStats().numInstsIssued0 - cpu->rename.getStats().idleCycles + cpu->iew.instQueue.getStats().numInstsIssued1) / (cpu->baseStats.numCycles);
+     
+    memoryBound = (cpu->rename.getStats().LQFullEvents + cpu->rename.getStats().SQFullEvents) / (cpu->baseStats.numCycles);
+    coreBound = executionStalls - memoryBound;
 }
 
 void

@@ -149,8 +149,9 @@ Rename::RenameStats::RenameStats(statistics::Group *parent)
       ADD_STAT(intReturned, statistics::units::Count::get(),
                "count of registers freed and written back to integer free list"),
       ADD_STAT(fpReturned, statistics::units::Count::get(),
-               "count of registers freed and written back to floating point free list")
-
+               "count of registers freed and written back to floating point free list"),
+      ADD_STAT(loadStall, statistics::units::Cycle::get(),
+               "Number of cycles where there is an IEW stall with an in flight load")
 {
     squashCycles.prereq(squashCycles);
     idleCycles.prereq(idleCycles);
@@ -184,6 +185,7 @@ Rename::RenameStats::RenameStats(statistics::Group *parent)
 
     intReturned.prereq(intReturned);
     fpReturned.prereq(fpReturned);
+    loadStall.prereq(loadStall);
 }
 
 void
@@ -425,6 +427,10 @@ Rename::tick()
 
     sortInsts();
 
+    if ((fromIEW->iewBlock[0]) & (loadsInProgress[0] > 0)){
+        stats.loadStall++;
+    }
+
     std::list<ThreadID>::iterator threads = activeThreads->begin();
     std::list<ThreadID>::iterator end = activeThreads->end();
 
@@ -628,7 +634,7 @@ Rename::renameInsts(ThreadID tid)
 
         DynInstPtr inst = insts_to_rename.front();
 
-        //For all kind of instructions, check ROB and IQ first For load
+        //For all kind of instructions, check ROB and IQ first. For load
         //instruction, check LQ size and take into account the inflight loads
         //For store instruction, check SQ size and take into account the
         //inflight stores

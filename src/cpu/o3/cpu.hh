@@ -601,6 +601,17 @@ class CPU : public BaseCPU
         /** Stat for total number of cycles the CPU spends descheduled due to a
          * quiesce operation or waiting for an interrupt. */
         statistics::Scalar quiesceCycles;
+        /** Top Down metrics */
+        statistics::Formula frontendBound;
+        statistics::Formula badSpeculation;
+        statistics::Formula backendBound;
+        statistics::Formula retiring;
+        statistics::Formula fetchLatency;
+        statistics::Formula fetchBandwidth;
+        statistics::Formula coreBound;
+        statistics::Formula memoryBound;
+        statistics::Formula executionStalls;
+        
     } cpuStats;
 
   public:
